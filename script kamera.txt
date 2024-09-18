@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Upload Gambar melalui Kamera</title>
+</head>
+<body>
+  <h1>Upload Gambar melalui Kamera</h1>
+  
+  <!-- Form untuk mengambil gambar -->
+  <form id="imageForm" enctype="multipart/form-data">
+    <label for="name">Nama:</label>
+    <input type="text" id="name" name="name" required><br><br>
+
+    <label for="email">Email:</label>
+    <input type="email" id="email" name="email" required><br><br>
+
+    <label for="message">Pesan:</label>
+    <textarea id="message" name="message" required></textarea><br><br>
+
+    <label for="cameraInput">Ambil gambar:</label>
+    <input type="file" id="cameraInput" accept="image/*" capture="camera" required><br><br>
+
+    <img id="preview" alt="Gambar Preview" width="200"><br><br>
+
+    <button type="submit">Kirim</button>
+  </form>
+
+  <script>
+    // Menampilkan pratinjau gambar yang diambil
+    const cameraInput = document.getElementById('cameraInput');
+    const preview = document.getElementById('preview');
+
+    cameraInput.addEventListener('change', function(event) {
+      const file = event.target.files[0];
+      const reader = new FileReader();
+      
+      reader.onloadend = function() {
+        preview.src = reader.result; // Menampilkan gambar
+      }
+
+      if (file) {
+        reader.readAsDataURL(file); // Konversi gambar ke base64
+      }
+    });
+
+    // Fungsi untuk mengirimkan data ke Google Apps Script
+    document.getElementById('imageForm').addEventListener('submit', function(event) {
+      event.preventDefault();
+
+      const name = document.getElementById('name').value;
+      const email = document.getElementById('email').value;
+      const message = document.getElementById('message').value;
+      const file = cameraInput.files[0];
+      
+      if (!file) {
+        alert("Harap unggah gambar.");
+        return;
+      }
+
+      const reader = new FileReader();
+      
+      reader.onloadend = function() {
+        const base64Image = reader.result.split(',')[1]; // Mengambil base64 dari Data URL
+        
+        // Membuat objek form data
+        const formData = new FormData();
+        formData.append('name', name);
+        formData.append('email', email);
+        formData.append('message', message);
+        formData.append('imageBase64', base64Image);
+
+        // Kirim data ke Google Apps Script
+        fetch('https://script.google.com/macros/s/AKfycbyNTwXFqEKeMJzAO_mdWfa8ajf_Ovt-VId7RwPx30ZUsFXwyz5pUvu5pxvucy_4PLU7hQ/exec', {
+          method: 'POST',
+          body: formData,
+        })
+        .then(response => response.text())
+        .then(result => {
+          alert(result); // Menampilkan hasil dari server
+        })
+        .catch(error => {
+          console.error('Error:', error);
+        });
+      }
+
+      reader.readAsDataURL(file); // Konversi gambar ke base64
+    });
+  </script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+function doPost(e) {
+  var ss = SpreadsheetApp.openByUrl('https://docs.google.com/spreadsheets/d/1wEEkheERVPWh_a3fTrd0LnVUH1mmTLL8UKJLgGBwH7k/edit?gid=0#gid=0'); // Ganti dengan URL Spreadsheet Anda
+  var sheet = ss.getSheetByName('Sheet1'); // Ganti dengan nama sheet Anda
+
+  var data = e.parameter;
+
+  // Mendapatkan tanggal dan waktu saat form dikirimkan
+  var timestamp = new Date();
+
+  // Jika ada data gambar dalam format base64
+  if (data.imageBase64) {
+    // Tentukan folder di Google Drive untuk menyimpan gambar
+    var folder = DriveApp.getFolderById('1UNa1-EY2QJsoD0OG3RJedYrCjMdKB14g'); // Ganti dengan ID folder Google Drive Anda
+
+    // Konversi base64 ke Blob
+    var decodedImage = Utilities.base64Decode(data.imageBase64);
+    var blob = Utilities.newBlob(decodedImage, MimeType.PNG, data.name + "_image.png");
+
+    // Simpan gambar ke Google Drive
+    var file = folder.createFile(blob);
+    var imageUrl = file.getUrl(); // Dapatkan URL gambar yang disimpan
+  }
+
+  // Menambahkan data (Nama, Email, Pesan, Tanggal, Gambar URL) ke dalam spreadsheet
+  sheet.appendRow([data.name, data.email, data.message, timestamp, imageUrl || 'No image']);
+
+  return ContentService.createTextOutput('Form submitted successfully');
+}
